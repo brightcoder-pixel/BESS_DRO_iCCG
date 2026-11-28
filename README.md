@@ -1,81 +1,117 @@
-A MATLAB R2022a research implementation of a relevance-aware two-stage distributionally robust battery energy storage system (BESS) scheduling method.
+# Correlation- and Degradation-Aware BESS Scheduling
 
-## Features
+Computational companion repository for the paper:
 
-- Gaussian-Copula PV/load uncertainty generation and fitting
-- K-means reduction to 20 representative daily trajectories
-- Finite-support Wasserstein distributionally robust optimization
-- Adaptive multi-cut column-and-constraint generation (iCCG)
-- Hourly day-ahead and 15-minute intraday recourse
-- Branch-flow SOCP network constraints on a 33-bus radial feeder
-- Rainflow cycle identification and cycle-depth piecewise-linear aging cost
-- Backward-forward sweep AC power-flow verification
-- Out-of-sample Monte Carlo voltage-violation probability and Wilson interval
-- SOC relaxation slack diagnostics; rainflow/PWL cost consistency and EFC diagnostics
-- Convergence, energy-trajectory, and degradation-coefficient plots
+**Correlation-and Degradation-Aware Two-Stage Distributionally Robust Scheduling of Battery Energy Storage in PV-Rich Distribution Networks**
 
-## Requirements
+This repository provides the computational modules, parameter configurations, reference datasets, and visualization scripts associated with the proposed two-stage distributionally robust optimization framework for battery energy storage systems (BESSs) in PV-rich distribution networks.
 
-- MATLAB R2022a or newer
-- [YALMIP](https://yalmip.github.io/)
-- IBM ILOG CPLEX 12.10 (default), or change `cfg.solver` to `gurobi` / `mosek`
-- Optimization Toolbox (`linprog`, for the finite-support transport LP)
+## 1. Main Features
 
-The code uses `cone()` and `sdpvar()` from YALMIP.
+The repository includes the following computational components:
 
-## Quick Start
+- **PV–Load Dependence Modeling:** Gaussian Copula-based modeling and correlated uncertainty scenario generation.
+- **Distributionally Robust Optimization:** Wasserstein ambiguity-set construction and evaluation.
+- **Battery Degradation Modeling:** Cycle-depth-dependent piecewise-linear degradation and Rainflow cycle counting.
+- **Multi-timescale Scheduling:** Coordination between hourly day-ahead scheduling and 15-min intraday operation.
+- **Optimization and Network Evaluation:** Adaptive multi-cut iCCG algorithm control, radial distribution network power-flow analysis, and reference result visualization.
 
-1. Add this project folder and all subfolders to the MATLAB path.
-2. Confirm that YALMIP and the selected solver are installed and licensed.
-3. Open `default_config.m`.
-4. For a short software test, set:
-   ```matlab
-   cfg.Nmc = 5;
-   cfg.NscenarioRaw = 50;
-   cfg.nRepresentative = 5;
-   cfg.maxICCG = 2;
-   ```
-5. Run:
-   ```matlab
-   results = run_full_model();
-   ```
+## 2. Repository Structure
 
-> For the full statistical assessment, restore `cfg.Nmc = 500`. The Monte Carlo evaluation is computationally expensive because every out-of-sample trajectory requires a 15-minute recourse SOCP solve.
-
-## Test System Parameters
-
-- 12.66 kV feeder
-- Total base demand 3.715 MW / 2.30 Mvar
-- PV buses 10, 17, 24, 30; aggregate PV capacity 2.5 MW
-- BESS at bus 17: energy range 0.2–1.8 MWh, initial/terminal energy 1.0 MWh, charge/discharge limit 0.4 MW, efficiency 0.95
-- DGs at buses 6 and 25, each 0.5 MW
-- Voltage limits 0.95–1.05 p.u.
-- DG cost 58 USD/MWh, curtailment penalty 75 USD/MWh, import/export limits 2/1 MW, export price 40 USD/MWh
-- 1-h day-ahead and 15-min intraday scheduling
-- Degradation segment coefficients 2.2, 5.0, 9.8, 18.5 USD/MWh
-- 20 representative scenarios, Wasserstein radius 0.05
-
-## Mathematical Implementation Notes
-
-### Finite-Support Wasserstein DRO
-
-The inner transport LP:
-
-```
-max  Σ_{s,j} γ(s,j) Q(x, ξ_j)
-s.t. Σ_j γ(s,j) = π_s
-     Σ_{s,j} γ(s,j) d(s,j) ≤ ε_W
-     γ(s,j) ≥ 0
+```text
+BESS-DRO-Scheduling/
+├── README.md
+├── README_CN.md
+├── CITATION.cff
+├── requirements.txt
+├── pyproject.toml
+├── config/
+├── data/
+│   └── reference/
+├── bess_dro/
+│   ├── config.py
+│   ├── uncertainty.py
+│   ├── wasserstein.py
+│   ├── degradation.py
+│   ├── coordination.py
+│   ├── ccg.py
+│   ├── network.py
+│   ├── reference_data.py
+│   └── plotting.py
+├── scripts/
+│   ├── run_demo.py
+│   └── reproduce_figures.py
+├── tests/
+└── docs/
 ```
 
-Its dual is represented by `α_s` and `λ`: `α_s + λ·d(s,j) ≥ Q(x, ξ_j)`, `λ ≥ 0`.
+## 3. Installation
 
-The iCCG procedure starts with one active candidate, solves the master, evaluates all finite candidate recourse problems, and adds up to three most violated candidate scenarios per iteration.
+**Requirements:**
+- Python 3.10 or later
+- NumPy, SciPy, pandas
+- scikit-learn
+- Matplotlib
+- pytest
 
-### Rainflow-Coupled Degradation
+Install dependencies:
 
-Rainflow turning-point pairings are fixed within each optimization solve. The four PWL segment variables are linked to the energy difference between the cycle's paired turning points. After solving, rainflow is applied again and the cycle pairings are updated. This is a sequential rainflow/optimization coordination heuristic.
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
 
-## License
+## 4. Running the Code
 
-To be added (e.g., MIT / Apache-2.0).
+Run the demonstration workflow:
+
+```bash
+python scripts/run_demo.py
+```
+
+This script generates 500 PV–load forecast-error trajectories, fits the Gaussian Copula model, reduces the trajectories to 20 representative scenarios, evaluates battery degradation cases, and generates demonstration outputs.
+
+Reproduce the reference figures:
+
+```bash
+python scripts/reproduce_figures.py
+```
+
+Run the test suite:
+
+```bash
+pytest -q
+```
+
+The generated results are saved in the `outputs/` directory.
+
+## 5. Main Simulation Parameters
+
+| Parameter | Value |
+|---|---|
+| Test system | Modified IEEE 33-bus feeder |
+| Nominal voltage | 12.66 kV |
+| Total PV capacity | 2.50 MW |
+| BESS location | Bus 17 |
+| BESS rated energy | 2.0 MWh |
+| Charge/discharge power | 0.4 MW |
+| Charge/discharge efficiency | 0.95 |
+| Energy operating range | 0.2–1.8 MWh |
+| Gaussian Copula parameter | -0.51 |
+| Wasserstein radius | 0.05 |
+| Representative scenarios | 20 |
+| Out-of-sample trajectories | 500 |
+| iCCG final gap tolerance | 0.10% |
+
+Detailed parameters are provided in `config/study_parameters.json`.
+
+## 6. Citation
+
+If you use this repository in your research, please cite the associated paper:
+
+Ju, X., Zhang, Y., & Wu, H. *Correlation-and Degradation-Aware Two-Stage Distributionally Robust Scheduling of Battery Energy Storage in PV-Rich Distribution Networks.*
+
+For further technical details, please refer to the documentation in the `docs/` directory.
+
+
+
